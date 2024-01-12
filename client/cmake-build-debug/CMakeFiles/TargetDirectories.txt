@@ -1,0 +1,3 @@
+/Users/zakerden1234/Desktop/Client-Server-Concepts/client/cmake-build-debug/CMakeFiles/client.dir
+/Users/zakerden1234/Desktop/Client-Server-Concepts/client/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/zakerden1234/Desktop/Client-Server-Concepts/client/cmake-build-debug/CMakeFiles/rebuild_cache.dir
