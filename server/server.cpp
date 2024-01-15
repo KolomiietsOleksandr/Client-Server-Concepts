@@ -2,7 +2,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sstream>
+#include <fstream>
 
 using namespace std;
 
@@ -72,7 +72,7 @@ private:
 
     void handleClient(int clientSocket) {
         char buffer[1024];
-        memset(buffer, 0, 1024);
+        memset(buffer, 0, sizeof(buffer));
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
@@ -83,7 +83,7 @@ private:
         }
 
         while (true) {
-            memset(buffer, 0, 1024);
+            memset(buffer, 0, sizeof(buffer));
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesReceived > 0) {
                 cout << "Received data: " << buffer << endl;
@@ -93,27 +93,48 @@ private:
                     cout << "Command: " << command << endl;
                     cout << "Filename: " << filename << endl;
 
-                    if (command == "GET"){
-                        
+                    if (strcmp(command, "PUT") == 0) {
+                        saveFile(clientSocket, filename);
                     }
-                    if (command == "List"){
-
-                    }
-                    if (command == "PUT"){
-
-                    }
-                    if (command == "DELETE"){
-
-                    }
-                    if (command == "INFO"){
-
-                    }
+                    // Додайте інші логічні відгалуження для інших команд
 
                 } else {
                     send(clientSocket, "Invalid command format", strlen("Invalid command format"), 0);
                 }
             }
         }
+    }
+
+    void saveFile(int clientSocket, const char* filename) {
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";  // Замініть шлях на свій шлях
+        ofstream file(filepath + filename, ios::binary);
+        if (!file.is_open()) {
+            perror("Error opening file for saving");
+            send(clientSocket, "Error saving file", strlen("Error saving file"), 0);
+            return;
+        }
+
+        // Отримання розміру файлу
+        streamsize fileSize;
+        recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+
+        const int bufferSize = 1024;
+        char buffer[bufferSize];
+        while (fileSize > 0) {
+            ssize_t bytesRead = recv(clientSocket, buffer, min(fileSize, static_cast<streamsize>(bufferSize)), 0);
+            if (bytesRead > 0) {
+                file.write(buffer, bytesRead);
+                fileSize -= bytesRead;
+            } else {
+                perror("Error receiving file data");
+                break;
+            }
+        }
+
+        file.close();
+
+        cout << "File saved successfully: " << filename << endl;
+        send(clientSocket, "File saved successfully", strlen("File saved successfully"), 0);
     }
 };
 

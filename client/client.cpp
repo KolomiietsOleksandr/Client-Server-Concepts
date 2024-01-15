@@ -3,6 +3,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <fstream>
 
 using namespace std;
 
@@ -36,7 +37,15 @@ public:
             string userInput;
             cout << "Enter a command: ";
             getline(cin, userInput);
-            send(clientSocket, userInput.c_str(), userInput.size(), 0);
+
+            char command[1024], filename[1024];
+            if (sscanf(userInput.c_str(), "%s %s", command, filename) == 2) {
+                if (strcmp(command, "PUT") == 0)
+                {
+                    sendFile(command, filename);
+                }
+            }
+            //send(clientSocket, userInput.c_str(), userInput.size(), 0);
         }
         else {
             send(clientSocket, message, strlen(message), 0);
@@ -51,6 +60,35 @@ public:
         if (bytesReceived > 0) {
             cout << "Received from server:\n" << buffer << endl;
         }
+    }
+
+    void sendFile(const string& command, const string& filename) {
+        string data = command + " " + filename;
+        send(clientSocket, data.c_str(), data.size(), 0);
+
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/client/cmake-build-debug/client-storage/";
+        ifstream file(filepath + filename, ios::binary | ios::ate);
+        if (!file.is_open()) {
+            cout << "Error opening file: " << filename << endl;
+            return;
+        }
+
+        streamsize fileSize = file.tellg();
+        file.seekg(0, ios::beg);
+
+        // Відправка розміру файлу
+        send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
+
+        const int bufferSize = 1024;
+        char buffer[bufferSize];
+        while (!file.eof()) {
+            file.read(buffer, bufferSize);
+            send(clientSocket, buffer, file.gcount(), 0);
+        }
+
+        file.close();
+
+        cout << "File sent successfully: " << filename << endl;
     }
 
     void closeConnection() {
@@ -79,6 +117,5 @@ int main() {
         }
         // client.closeConnection();
     }
-
     return 0;
 }
