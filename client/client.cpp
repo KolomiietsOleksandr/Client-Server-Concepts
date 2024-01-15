@@ -1,7 +1,10 @@
 #include <iostream>
+#include <string>
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+
+using namespace std;
 
 class Client {
 public:
@@ -29,7 +32,15 @@ public:
     }
 
     void sendData(const char* message) {
-        send(clientSocket, message, strlen(message), 0);
+        if (!message) {
+            string userInput;
+            cout << "Enter a command: ";
+            getline(cin, userInput);
+            send(clientSocket, userInput.c_str(), userInput.size(), 0);
+        }
+        else {
+            send(clientSocket, message, strlen(message), 0);
+        }
     }
 
     void receiveData() {
@@ -38,7 +49,7 @@ public:
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            std::cout << "Received from server:\n" << buffer << std::endl;
+            cout << "Received from server:\n" << buffer << endl;
         }
     }
 
@@ -53,7 +64,6 @@ private:
 };
 
 int main() {
-    // Client configuration
     int port = 12345;
     const char* serverIp = "127.0.0.1";
 
@@ -65,6 +75,7 @@ int main() {
 
         while (true) {
             client.receiveData();
+            client.sendData(nullptr);
         }
         // client.closeConnection();
     }

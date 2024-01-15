@@ -2,6 +2,9 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sstream>
+
+using namespace std;
 
 class Server {
 public:
@@ -9,7 +12,7 @@ public:
 
     void start() {
         if (setupServer() && bindServer() && listenForConnections()) {
-            std::cout << "Server listening on port " << port << std::endl;
+            cout << "Server listening on port " << port << endl;
             acceptConnections();
         }
     }
@@ -33,11 +36,12 @@ private:
         serverAddr.sin_addr.s_addr = INADDR_ANY;
         serverAddr.sin_port = htons(port);
 
-        if (bind(serverSocket, reinterpret_cast<struct sockaddr*>(&serverAddr), sizeof(serverAddr)) == -1) {
+        if (::bind(serverSocket, reinterpret_cast<struct sockaddr*>(&serverAddr), sizeof(serverAddr)) != 0) {
             perror("Bind failed");
             close(serverSocket);
             return false;
         }
+
         return true;
     }
 
@@ -61,7 +65,7 @@ private:
             return;
         }
 
-        std::cout << "Accepted connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
+        cout << "Accepted connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << endl;
 
         handleClient(clientSocket);
     }
@@ -72,19 +76,42 @@ private:
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            std::cout << "Received data: " << buffer << std::endl;
+            cout << "Received data: " << buffer << endl;
 
             const char* response = "List of commands:\n 1. Get file <filename>\n 2. Get list of files\n 3. Put file <filename>\n 4. Delete <filename>\n 5. Info <filename>";
             send(clientSocket, response, strlen(response), 0);
         }
 
         while (true) {
+            memset(buffer, 0, 1024);
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesReceived > 0) {
-                std::cout << "Received data: " << buffer << std::endl;
+                cout << "Received data: " << buffer << endl;
 
-                const char* response = "Received your message";
-                send(clientSocket, response, strlen(response), 0);
+                char command[1024], filename[1024];
+                if (sscanf(buffer, "%s %s", command, filename) == 2) {
+                    cout << "Command: " << command << endl;
+                    cout << "Filename: " << filename << endl;
+
+                    if (command == "GET"){
+                        
+                    }
+                    if (command == "List"){
+
+                    }
+                    if (command == "PUT"){
+
+                    }
+                    if (command == "DELETE"){
+
+                    }
+                    if (command == "INFO"){
+
+                    }
+
+                } else {
+                    send(clientSocket, "Invalid command format", strlen("Invalid command format"), 0);
+                }
             }
         }
     }
