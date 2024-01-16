@@ -40,13 +40,16 @@ public:
 
             char command[1024], filename[1024];
             if (sscanf(userInput.c_str(), "%s %s", command, filename) == 2) {
-                if (strcmp(command, "PUT") == 0)
-                {
+                if (strcmp(command, "PUT") == 0) {
                     sendFile(command, filename);
                 }
             }
+            else if (strcmp(command, "LIST") == 0)
+                {
+                    send(clientSocket, command, strlen(command), 0);
+                }
+            }
             //send(clientSocket, userInput.c_str(), userInput.size(), 0);
-        }
         else {
             send(clientSocket, message, strlen(message), 0);
         }
@@ -76,7 +79,6 @@ public:
         streamsize fileSize = file.tellg();
         file.seekg(0, ios::beg);
 
-        // Відправка розміру файлу
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         const int bufferSize = 1024;

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <fstream>
+#include <dirent.h>
 
 using namespace std;
 
@@ -96,9 +97,13 @@ private:
                     if (strcmp(command, "PUT") == 0) {
                         saveFile(clientSocket, filename);
                     }
-                    // Додайте інші логічні відгалуження для інших команд
+                }
 
-                } else {
+                if (strcmp(command, "LIST") == 0) {
+                        listFiles(clientSocket);
+                    }
+
+                else {
                     send(clientSocket, "Invalid command format", strlen("Invalid command format"), 0);
                 }
             }
@@ -114,7 +119,6 @@ private:
             return;
         }
 
-        // Отримання розміру файлу
         streamsize fileSize;
         recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
 
@@ -135,6 +139,29 @@ private:
 
         cout << "File saved successfully: " << filename << endl;
         send(clientSocket, "File saved successfully", strlen("File saved successfully"), 0);
+    }
+
+    void listFiles(int clientSocket) {
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
+        DIR* dir;
+        struct dirent* ent;
+
+        if ((dir = opendir(filepath.c_str())) != NULL) {
+            string filesList = "Files and Directories in server-storage:\n";
+            while ((ent = readdir(dir)) != NULL) {
+                if (ent->d_type == DT_REG || ent->d_type == DT_DIR) {
+                    filesList += ent->d_name;
+                    filesList += (ent->d_type == DT_DIR ? " [Directory]" : " [File]");
+                    filesList += "\n";
+                }
+            }
+            closedir(dir);
+
+            send(clientSocket, filesList.c_str(), filesList.size(), 0);
+        } else {
+            perror("Error opening directory");
+            send(clientSocket, "Error listing files", strlen("Error listing files"), 0);
+        }
     }
 };
 
