@@ -96,14 +96,12 @@ private:
 
                     if (strcmp(command, "PUT") == 0) {
                         saveFile(clientSocket, filename);
+                    } else if (strcmp(command, "GET") == 0) {
+                        sendFileToClient(clientSocket, filename);
                     }
-                }
-
-                if (strcmp(command, "LIST") == 0) {
-                        listFiles(clientSocket);
-                    }
-
-                else {
+                } else if (strcmp(command, "LIST") == 0) {
+                    listFiles(clientSocket);
+                } else {
                     send(clientSocket, "Invalid command format", strlen("Invalid command format"), 0);
                 }
             }
@@ -162,6 +160,34 @@ private:
             perror("Error opening directory");
             send(clientSocket, "Error listing files", strlen("Error listing files"), 0);
         }
+    }
+
+    void sendFileToClient(int clientSocket, const char* filename) {
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
+        ifstream file(filepath + filename, ios::binary);
+        if (!file.is_open()) {
+            perror("Error opening file for sending");
+            send(clientSocket, "Error opening file for sending", strlen("Error opening file for sending"), 0);
+            return;
+        }
+
+        file.seekg(0, ios::end);
+        streamsize fileSize = file.tellg();
+        file.seekg(0, ios::beg);
+
+        send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
+
+        const int bufferSize = 1024;
+        char buffer[bufferSize];
+        while (!file.eof()) {
+            file.read(buffer, bufferSize);
+            send(clientSocket, buffer, file.gcount(), 0);
+        }
+
+        file.close();
+
+        cout << "File sent successfully: " << filename << endl;
+        send(clientSocket, "Successfully sent", sizeof("Successfully sent"), 0);
     }
 };
 
