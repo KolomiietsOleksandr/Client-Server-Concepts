@@ -4,6 +4,9 @@
 #include <arpa/inet.h>
 #include <fstream>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sstream>
+#include <ctime>
 
 using namespace std;
 
@@ -21,6 +24,7 @@ public:
 private:
     int serverSocket;
     int port;
+    string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
 
     bool setupServer() {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -100,9 +104,10 @@ private:
                         sendFile(clientSocket, filename);
                     } else if (strcmp(command, "DELETE") == 0) {
                         deleteFile(clientSocket, filename);
+                    } else if (strcmp(command, "INFO") == 0) {
+                        sendFileInfo(clientSocket, filename);
                     }
                 }
-
                 if (strcmp(command, "LIST") == 0) {
                     listFiles(clientSocket);
                 }
@@ -111,7 +116,6 @@ private:
     }
 
     void saveFile(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
         ofstream file(filepath + filename, ios::binary);
         if (!file.is_open()) {
             perror("Error opening file for saving");
@@ -142,7 +146,6 @@ private:
     }
 
     void sendFile(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
         ifstream file(filepath + filename, ios::binary);
 
         if (!file.is_open()) {
@@ -169,8 +172,6 @@ private:
     }
 
     void deleteFile(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
-
         if (remove((filepath + filename).c_str()) != 0) {
             perror("Error deleting file");
             send(clientSocket, "Error deleting file", strlen("Error deleting file"), 0);
@@ -181,16 +182,14 @@ private:
     }
 
     void listFiles(int clientSocket) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
         DIR* dir;
         struct dirent* ent;
 
         if ((dir = opendir(filepath.c_str())) != NULL) {
-            string filesList = "Files and Directories in server-storage:\n";
+            string filesList = "Files in server-storage:\n";
             while ((ent = readdir(dir)) != NULL) {
-                if (ent->d_type == DT_REG || ent->d_type == DT_DIR) {
+                if (ent->d_type == DT_REG) {
                     filesList += ent->d_name;
-                    filesList += (ent->d_type == DT_DIR ? " [Directory]" : " [File]");
                     filesList += "\n";
                 }
             }
@@ -201,6 +200,47 @@ private:
             perror("Error opening directory");
             send(clientSocket, "Error listing files", strlen("Error listing files"), 0);
         }
+    }
+
+    void sendFileInfo(int clientSocket, const char* filename) {
+        struct stat fileStat;
+
+        if (stat((filepath + filename).c_str(), &fileStat) == 0) {
+            string fileInfo = "File Information:\n";
+            fileInfo += "Name: " + getFileNameWithoutExtension(filename) + "\n";
+            fileInfo += "Size: " + to_string(fileStat.st_size) + " bytes\n";
+            fileInfo += "Last modified: " + getFormattedTime(fileStat.st_mtime) + "\n";
+            fileInfo += "Format: " + getFileFormat(filename) + "\n";
+
+            send(clientSocket, fileInfo.c_str(), fileInfo.size(), 0);
+        } else {
+            perror("Error getting file information");
+            send(clientSocket, "Error getting file information", strlen("Error getting file information"), 0);
+        }
+    }
+
+    string getFileFormat(const string& filename) {
+        size_t dotPosition = filename.find_last_of('.');
+        if (dotPosition != string::npos && dotPosition < filename.length() - 1) {
+            return filename.substr(dotPosition + 1);
+        }
+        return "Unknown";
+    }
+
+    string getFileNameWithoutExtension(const string& filename) {
+        size_t dotPosition = filename.find_last_of('.');
+        if (dotPosition != string::npos && dotPosition > 0) {
+            return filename.substr(0, dotPosition);
+        }
+        return filename;
+    }
+
+    string getFormattedTime(time_t timestamp) {
+        struct tm* timeInfo;
+        timeInfo = localtime(&timestamp);
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeInfo);
+        return buffer;
     }
 };
 

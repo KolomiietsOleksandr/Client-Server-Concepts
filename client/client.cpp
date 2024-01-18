@@ -47,16 +47,18 @@ public:
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                     receiveFileFromServer(filename);
                 }
-                else if (strcmp(command, "DELETE") == 0){
-                    cout << "Delete command" << endl;
+                else if (strcmp(command, "DELETE") == 0) {
+                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                } else if (strcmp(command, "INFO") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
             } else if (strcmp(command, "LIST") == 0) {
                 send(clientSocket, command, strlen(command), 0);
             }
-        }
-        else {
-            send(clientSocket, message, strlen(message), 0);
+            else {
+                cout << "Invalid commamd" << endl;
+                sendData("Null");
+            }
         }
     }
 
@@ -128,11 +130,6 @@ public:
 
         cout << "File sent successfully: " << filename << endl;
     }
-
-    void closeConnection() {
-        close(clientSocket);
-    }
-
 private:
     int clientSocket;
     const char* serverIp;
@@ -153,7 +150,6 @@ int main() {
             client.receiveData();
             client.sendData("Null");
         }
-        // client.closeConnection();
     }
     return 0;
 }
