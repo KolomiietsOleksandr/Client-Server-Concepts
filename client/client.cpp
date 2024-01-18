@@ -33,7 +33,7 @@ public:
     }
 
     void sendData(const char* message) {
-        if (!message) {
+        if (strcmp(message, "Null") == 0) {
             string userInput;
             cout << "Enter a command: ";
             getline(cin, userInput);
@@ -42,16 +42,20 @@ public:
             if (sscanf(userInput.c_str(), "%s %s", command, filename) == 2) {
                 if (strcmp(command, "PUT") == 0) {
                     sendFile(command, filename);
-                } else if (strcmp(command, "GET") == 0) {
+                }
+                else if (strcmp(command, "GET") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                     receiveFileFromServer(filename);
                 }
+                else if (strcmp(command, "DELETE") == 0){
+                    cout << "Delete command" << endl;
+                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                }
             } else if (strcmp(command, "LIST") == 0) {
                 send(clientSocket, command, strlen(command), 0);
-            } else {
-                send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
-        } else {
+        }
+        else {
             send(clientSocket, message, strlen(message), 0);
         }
     }
@@ -147,7 +151,7 @@ int main() {
 
         while (true) {
             client.receiveData();
-            client.sendData(nullptr);
+            client.sendData("Null");
         }
         // client.closeConnection();
     }

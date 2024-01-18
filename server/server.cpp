@@ -97,19 +97,21 @@ private:
                     if (strcmp(command, "PUT") == 0) {
                         saveFile(clientSocket, filename);
                     } else if (strcmp(command, "GET") == 0) {
-                        sendFileToClient(clientSocket, filename);
+                        sendFile(clientSocket, filename);
+                    } else if (strcmp(command, "DELETE") == 0) {
+                        deleteFile(clientSocket, filename);
                     }
-                } else if (strcmp(command, "LIST") == 0) {
+                }
+
+                if (strcmp(command, "LIST") == 0) {
                     listFiles(clientSocket);
-                } else {
-                    send(clientSocket, "Invalid command format", strlen("Invalid command format"), 0);
                 }
             }
         }
     }
 
     void saveFile(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";  // Замініть шлях на свій шлях
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
         ofstream file(filepath + filename, ios::binary);
         if (!file.is_open()) {
             perror("Error opening file for saving");
@@ -139,6 +141,45 @@ private:
         send(clientSocket, "File saved successfully", strlen("File saved successfully"), 0);
     }
 
+    void sendFile(int clientSocket, const char* filename) {
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
+        ifstream file(filepath + filename, ios::binary);
+
+        if (!file.is_open()) {
+            cout << "Error opening file: " << filename << endl;
+            send(clientSocket, "Error opening file", strlen("Error opening file"), 0);
+            return;
+        }
+
+        streamsize fileSize = file.tellg();
+        file.seekg(0, ios::beg);
+
+        send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
+
+        const int bufferSize = 1024;
+        char buffer[bufferSize];
+        while (!file.eof()) {
+            file.read(buffer, bufferSize);
+            send(clientSocket, buffer, file.gcount(), 0);
+        }
+
+        file.close();
+
+        cout << "File sent successfully: " << filename << endl;
+    }
+
+    void deleteFile(int clientSocket, const char* filename) {
+        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
+
+        if (remove((filepath + filename).c_str()) != 0) {
+            perror("Error deleting file");
+            send(clientSocket, "Error deleting file", strlen("Error deleting file"), 0);
+        } else {
+            cout << "File deleted successfully: " << filename << endl;
+            send(clientSocket, "File deleted successfully", strlen("File deleted successfully"), 0);
+        }
+    }
+
     void listFiles(int clientSocket) {
         string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
         DIR* dir;
@@ -160,34 +201,6 @@ private:
             perror("Error opening directory");
             send(clientSocket, "Error listing files", strlen("Error listing files"), 0);
         }
-    }
-
-    void sendFileToClient(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
-        ifstream file(filepath + filename, ios::binary);
-        if (!file.is_open()) {
-            perror("Error opening file for sending");
-            send(clientSocket, "Error opening file for sending", strlen("Error opening file for sending"), 0);
-            return;
-        }
-
-        file.seekg(0, ios::end);
-        streamsize fileSize = file.tellg();
-        file.seekg(0, ios::beg);
-
-        send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
-
-        const int bufferSize = 1024;
-        char buffer[bufferSize];
-        while (!file.eof()) {
-            file.read(buffer, bufferSize);
-            send(clientSocket, buffer, file.gcount(), 0);
-        }
-
-        file.close();
-
-        cout << "File sent successfully: " << filename << endl;
-        send(clientSocket, "Successfully sent", sizeof("Successfully sent"), 0);
     }
 };
 
