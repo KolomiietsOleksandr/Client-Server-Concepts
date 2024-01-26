@@ -59,7 +59,10 @@ public:
                 cout << "Invalid commamd" << endl;
                 sendData("Null");
             }
+        } else {
+            send(clientSocket, message, strlen(message), 0);
         }
+
     }
 
     void receiveData() {
