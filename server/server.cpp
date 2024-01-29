@@ -28,6 +28,7 @@ private:
     int serverSocket;
     int port;
     string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
+    unordered_map<int, string> clientDirectories;
 
     bool setupServer() {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -39,7 +40,7 @@ private:
     }
 
     bool bindServer() {
-        sockaddr_in serverAddr{};
+        sockaddr_in serverAddr;
         serverAddr.sin_family = AF_INET;
         serverAddr.sin_addr.s_addr = INADDR_ANY;
         serverAddr.sin_port = htons(port);
@@ -63,7 +64,7 @@ private:
     }
 
     void acceptConnections() {
-        sockaddr_in clientAddr{};
+        sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
 
         int clientSocket = accept(serverSocket, reinterpret_cast<struct sockaddr*>(&clientAddr), &clientAddrLen);
@@ -75,8 +76,8 @@ private:
 
         cout << "Accepted connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << endl;
 
-        thread clientThread(&Server::handleClient, this, clientSocket);
-        clientThread.detach(); // Відділяємо потік від основного процесу
+        std::thread clientThread(&Server::handleClient, this, clientSocket);
+        clientThread.detach();
     }
 
     void handleClient(int clientSocket) {
@@ -85,7 +86,17 @@ private:
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            cout << "Received data: " << buffer << endl;
+            string clientName = buffer;
+            cout << "Received name: " << clientName << endl;
+
+            string clientDirectory = filepath + clientName + "/";
+            if (!createClientDirectory(clientDirectory)) {
+                cerr << "Error creating directory for client" << endl;
+                close(clientSocket);
+                return;
+            }
+
+            clientDirectories[clientSocket] = clientDirectory;
 
             const char* response = "List of commands:\n 1. Get file <filename>\n 2. Get list of files\n 3. Put file <filename>\n 4. Delete <filename>\n 5. Info <filename>";
             send(clientSocket, response, strlen(response), 0);
@@ -121,8 +132,20 @@ private:
         }
     }
 
+    bool createClientDirectory(const string& directory) {
+        struct stat st;
+        if (stat(directory.c_str(), &st) != 0) {
+            if (mkdir(directory.c_str(), 0777) != 0) {
+                perror("Error creating directory");
+                return false;
+            }
+        }
+        return true;
+    }
+
     void saveFile(int clientSocket, const char* filename) {
-        ofstream file(filepath + filename, ios::binary);
+        string clientDirectory = clientDirectories[clientSocket];
+        ofstream file(clientDirectory + filename, ios::binary);
         if (!file.is_open()) {
             perror("Error opening file for saving");
             send(clientSocket, "Error saving file", strlen("Error saving file"), 0);
@@ -152,8 +175,8 @@ private:
     }
 
     void sendFile(int clientSocket, const char* filename) {
-        string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
-        ifstream file(filepath + filename, ios::binary);
+        string clientDirectory = clientDirectories[clientSocket];
+        ifstream file(clientDirectory + filename, ios::binary);
         if (!file.is_open()) {
             perror("Error opening file for sending");
             send(clientSocket, "Error opening file for sending", strlen("Error opening file for sending"), 0);
@@ -180,7 +203,8 @@ private:
     }
 
     void deleteFile(int clientSocket, const char* filename) {
-        if (remove((filepath + filename).c_str()) != 0) {
+        string clientDirectory = clientDirectories[clientSocket];
+        if (remove((clientDirectory + filename).c_str()) != 0) {
             perror("Error deleting file");
             send(clientSocket, "Error deleting file", strlen("Error deleting file"), 0);
         } else {
@@ -190,10 +214,11 @@ private:
     }
 
     void listFiles(int clientSocket) {
+        string clientDirectory = clientDirectories[clientSocket];
         DIR* dir;
         struct dirent* ent;
 
-        if ((dir = opendir(filepath.c_str())) != NULL) {
+        if ((dir = opendir(clientDirectory.c_str())) != NULL) {
             string filesList = "Files in server-storage:\n";
             while ((ent = readdir(dir)) != NULL) {
                 if (ent->d_type == DT_REG) {
@@ -211,9 +236,10 @@ private:
     }
 
     void sendFileInfo(int clientSocket, const char* filename) {
+        string clientDirectory = clientDirectories[clientSocket];
         struct stat fileStat;
 
-        if (stat((filepath + filename).c_str(), &fileStat) == 0) {
+        if (stat((clientDirectory + filename).c_str(), &fileStat) == 0) {
             string fileInfo = "File Information:\n";
             fileInfo += "Name: " + getFileNameWithoutExtension(filename) + "\n";
             fileInfo += "Size: " + to_string(fileStat.st_size) + " bytes\n";
