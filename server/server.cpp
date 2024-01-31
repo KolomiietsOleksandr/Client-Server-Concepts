@@ -29,6 +29,7 @@ private:
     int port;
     string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
     unordered_map<int, string> clientDirectories;
+    std::mutex clientDirectoriesMutex;
 
     bool setupServer() {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -90,6 +91,7 @@ private:
             cout << "Received name: " << clientName << endl;
 
             string clientDirectory = filepath + clientName + "/";
+            std::lock_guard<std::mutex> lock(clientDirectoriesMutex);
             if (!createClientDirectory(clientDirectory)) {
                 cerr << "Error creating directory for client" << endl;
                 close(clientSocket);
