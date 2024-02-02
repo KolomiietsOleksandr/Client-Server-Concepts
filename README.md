@@ -40,7 +40,8 @@ The communication protocol is implemented as a simple request-response protocol 
   g++ client.cpp -o client
 ```
 2. Run the client:
-3. The client will connect to the server. Follow the prompts to interact with the server.
+3. Enter your name to create a directory.
+4. The client will connect to the server. Follow the prompts to interact with the server.
 
 ### Possible Errors:
 **Error creating socket:**
