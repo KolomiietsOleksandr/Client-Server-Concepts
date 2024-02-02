@@ -59,13 +59,13 @@ The communication protocol is implemented as a simple request-response protocol 
 
 ## Commands
 
-| Command | Description |
-| ------ | ------ |
-| **PUT <filename>** | <div> Upload a file to the server.<br>Example: 'PUT myfile.txt' </div> |
-| **GET <filename>** | <div>Download a file from the server.<br>Example: 'GET myfile.txt'</div>  |
-| **DELETE <filename>** | <div>Delete a file on the server.<br>Example: 'DELETE myfile.txt'</div> |
-| **INFO <filename>** | <div>Get information about a file on the server.<br>Example: 'INFO myfile.txt'</div> |
-| **LIST** | <div>Get a list of files on the server.</div> |
+| Command | Description | Sending size  | Receiving size |
+| ------ | ------ | ------ | ------ |
+| **PUT <filename>** | <div> Upload a file to the server.<br>Example: 'PUT myfile.txt' </div> | 5 bytes + filename length + file size | Response length |
+| **GET <filename>** | <div>Download a file from the server.<br>Example: 'GET myfile.txt'</div>  | 5 bytes + filename length | Response length + file size |
+| **DELETE <filename>** | <div>Delete a file on the server.<br>Example: 'DELETE myfile.txt'</div> | 8 bytes + filename length | Response length |
+| **INFO <filename>** | <div>Get information about a file on the server.<br>Example: 'INFO myfile.txt'</div> | 6 bytes + filename length | Response length |
+| **LIST** | <div>Get a list of files on the server.</div> | 5 bytes | Response length |
 
 <br>
 
