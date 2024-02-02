@@ -79,12 +79,11 @@ Each client request is processed independently to ensure responsiveness and scal
 
 **Security Considerations:**
 Currently, the protocol does not include authentication or encryption mechanisms.
-Future versions may incorporate security features to protect data integrity and confidentiality.
 
 ### Data Chunking:
 
 To optimize data transfer efficiency, the protocol utilizes data chunking techniques.
-Large files are divided into smaller chunks before transmission, reducing the risk of network congestion and improving overall performance.
+Large files are divided into smaller chunks [1024 bytes] before transmission, reducing the risk of network congestion and improving overall performance.
 Chunking also allows for better error recovery and resumption of interrupted transfers, as individual chunks can be resent independently.
 
 ### Mutex Usage:
