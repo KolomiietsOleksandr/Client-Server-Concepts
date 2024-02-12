@@ -50,16 +50,16 @@ public:
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                     receiveFileFromServer(filename);
                 }
-                else if (strcmp(command, "DELETE") == 0) {
-                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
-                } else if (strcmp(command, "INFO") == 0) {
+                else if (strcmp(command, "CREATE_ROOM") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
-            } else if (strcmp(command, "LIST") == 0) {
-                send(clientSocket, command, strlen(command), 0);
+                else {
+                    cout << "Invalid command" << endl;
+                    sendData("Null");
+                }
             }
             else {
-                cout << "Invalid commamd" << endl;
+                cout << "Invalid command" << endl;
                 sendData("Null");
             }
         } else {
@@ -79,8 +79,6 @@ public:
     }
 
     void receiveFileFromServer(const string& filename) {
-
-
         ofstream file(filepath + nameClient + "/" + filename, ios::binary);
 
         if (!file.is_open()) {

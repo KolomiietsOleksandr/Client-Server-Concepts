@@ -8,6 +8,9 @@
 #include <sstream>
 #include <ctime>
 #include <thread>
+#include <unordered_map>
+#include <mutex>
+#include <vector>
 
 using namespace std;
 
@@ -29,7 +32,9 @@ private:
     int port;
     string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
     unordered_map<int, string> clientDirectories;
-    std::mutex clientDirectoriesMutex;
+    mutex clientDirectoriesMutex;
+    mutex mutexCout;
+    vector<string> rooms;
 
     bool setupServer() {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -74,10 +79,10 @@ private:
             close(serverSocket);
             return;
         }
-
+        mutexCout.lock();
         cout << "Accepted connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << endl;
-
-        std::thread clientThread(&Server::handleClient, this, clientSocket);
+        mutexCout.unlock();
+        thread clientThread(&Server::handleClient, this, clientSocket);
         clientThread.detach();
     }
 
@@ -88,10 +93,12 @@ private:
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
             string clientName = buffer;
+            mutexCout.lock();
             cout << "Received name: " << clientName << endl;
+            mutexCout.unlock();
 
             string clientDirectory = filepath + clientName + "/";
-            std::lock_guard<std::mutex> lock(clientDirectoriesMutex);
+            lock_guard<mutex> lock(clientDirectoriesMutex);
             if (!createClientDirectory(clientDirectory)) {
                 cerr << "Error creating directory for client" << endl;
                 close(clientSocket);
@@ -100,35 +107,38 @@ private:
 
             clientDirectories[clientSocket] = clientDirectory;
 
-            const char* response = "List of commands:\n 1. Get file <filename>\n 2. Get list of files\n 3. Put file <filename>\n 4. Delete <filename>\n 5. Info <filename>";
-            send(clientSocket, response, strlen(response), 0);
+            string welcomeMessage = "Hello, " + clientName + "!\n";
+            welcomeMessage += "Available rooms:\n";
+            for (const string& room : rooms) {
+                welcomeMessage += " - " + room + "\n";
+            }
+            welcomeMessage += "Type 'CREATE_ROOM <roomname>' to create a new room.";
+
+            send(clientSocket, welcomeMessage.c_str(), welcomeMessage.size(), 0);
         }
 
         while (true) {
             memset(buffer, 0, sizeof(buffer));
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesReceived > 0) {
+                mutexCout.lock();
                 cout << "Received data: " << buffer << endl;
-
+                mutexCout.unlock();
                 char command[1024], filename[1024];
                 if (sscanf(buffer, "%s %s", command, filename) == 2) {
+                    mutexCout.lock();
                     cout << "Command: " << command << endl;
-                    cout << "Filename: " << filename << endl;
-
+                    cout << "Value: " << filename << endl;
+                    mutexCout.unlock();
                     if (strcmp(command, "PUT") == 0) {
                         saveFile(clientSocket, filename);
                     } else if (strcmp(command, "GET") == 0) {
                         sendFile(clientSocket, filename);
-                    } else if (strcmp(command, "DELETE") == 0) {
-                        deleteFile(clientSocket, filename);
-                    } else if (strcmp(command, "INFO") == 0) {
-                        sendFileInfo(clientSocket, filename);
+                    } else if (strcmp(command, "CREATE_ROOM") == 0) {
+                        createRoom(clientSocket, filename);
                     } else {
                         send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
                     }
-                }
-                if (strcmp(command, "LIST") == 0) {
-                    listFiles(clientSocket);
                 }
             }
         }
@@ -171,8 +181,9 @@ private:
         }
 
         file.close();
-
+        mutexCout.lock();
         cout << "File saved successfully: " << filename << endl;
+        mutexCout.unlock();
         send(clientSocket, "File saved successfully", strlen("File saved successfully"), 0);
     }
 
@@ -199,84 +210,16 @@ private:
         }
 
         file.close();
-
+        mutexCout.lock();
         cout << "File sent successfully: " << filename << endl;
+        mutexCout.unlock();
         send(clientSocket, "Successfully sent", sizeof("Successfully sent"), 0);
     }
 
-    void deleteFile(int clientSocket, const char* filename) {
-        string clientDirectory = clientDirectories[clientSocket];
-        if (remove((clientDirectory + filename).c_str()) != 0) {
-            perror("Error deleting file");
-            send(clientSocket, "Error deleting file", strlen("Error deleting file"), 0);
-        } else {
-            cout << "File deleted successfully: " << filename << endl;
-            send(clientSocket, "File deleted successfully", strlen("File deleted successfully"), 0);
-        }
-    }
-
-    void listFiles(int clientSocket) {
-        string clientDirectory = clientDirectories[clientSocket];
-        DIR* dir;
-        struct dirent* ent;
-
-        if ((dir = opendir(clientDirectory.c_str())) != NULL) {
-            string filesList = "Files in server-storage:\n";
-            while ((ent = readdir(dir)) != NULL) {
-                if (ent->d_type == DT_REG) {
-                    filesList += ent->d_name;
-                    filesList += "\n";
-                }
-            }
-            closedir(dir);
-
-            send(clientSocket, filesList.c_str(), filesList.size(), 0);
-        } else {
-            perror("Error opening directory");
-            send(clientSocket, "Error listing files", strlen("Error listing files"), 0);
-        }
-    }
-
-    void sendFileInfo(int clientSocket, const char* filename) {
-        string clientDirectory = clientDirectories[clientSocket];
-        struct stat fileStat;
-
-        if (stat((clientDirectory + filename).c_str(), &fileStat) == 0) {
-            string fileInfo = "File Information:\n";
-            fileInfo += "Name: " + getFileNameWithoutExtension(filename) + "\n";
-            fileInfo += "Size: " + to_string(fileStat.st_size) + " bytes\n";
-            fileInfo += "Last modified: " + getFormattedTime(fileStat.st_mtime) + "\n";
-            fileInfo += "Format: " + getFileFormat(filename) + "\n";
-
-            send(clientSocket, fileInfo.c_str(), fileInfo.size(), 0);
-        } else {
-            perror("Error getting file information");
-            send(clientSocket, "Error getting file information", strlen("Error getting file information"), 0);
-        }
-    }
-
-    string getFileFormat(const string& filename) {
-        size_t dotPosition = filename.find_last_of('.');
-        if (dotPosition != string::npos && dotPosition < filename.length() - 1) {
-            return filename.substr(dotPosition + 1);
-        }
-        return "Unknown";
-    }
-
-    string getFileNameWithoutExtension(const string& filename) {
-        size_t dotPosition = filename.find_last_of('.');
-        if (dotPosition != string::npos && dotPosition > 0) {
-            return filename.substr(0, dotPosition);
-        }
-        return filename;
-    }
-
-    string getFormattedTime(time_t timestamp) {
-        struct tm* timeInfo;
-        timeInfo = localtime(&timestamp);
-        char buffer[80];
-        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeInfo);
-        return buffer;
+    void createRoom(int clientSocket, const char* roomname) {
+        lock_guard<mutex> lock(clientDirectoriesMutex);
+        rooms.push_back(roomname);
+        send(clientSocket, "Room created successfully", sizeof("Room created successfully"), 0);
     }
 };
 
