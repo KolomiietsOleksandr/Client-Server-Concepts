@@ -50,13 +50,15 @@ public:
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                     receiveFileFromServer(filename);
                 }
-                else if (strcmp(command, "CREATE_ROOM") == 0) {
+                else if (strcmp(command, "CREATE_ROOM") == 0 || strcmp(command, "JOIN_ROOM") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
                 else {
                     cout << "Invalid command" << endl;
                     sendData("Null");
                 }
+            } else if (strcmp(command, "LIST") == 0) {
+                send(clientSocket, command, strlen(command), 0);
             }
             else {
                 cout << "Invalid command" << endl;

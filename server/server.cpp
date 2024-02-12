@@ -112,7 +112,7 @@ private:
             for (const string& room : rooms) {
                 welcomeMessage += " - " + room + "\n";
             }
-            welcomeMessage += "Type 'CREATE_ROOM <roomname>' to create a new room.";
+            welcomeMessage += "Type 'CREATE_ROOM <roomname>' to create a new room or 'JOIN_ROOM <roomname>' to join an existing room.";
 
             send(clientSocket, welcomeMessage.c_str(), welcomeMessage.size(), 0);
         }
@@ -124,23 +124,35 @@ private:
                 mutexCout.lock();
                 cout << "Received data: " << buffer << endl;
                 mutexCout.unlock();
-                char command[1024], filename[1024];
-                if (sscanf(buffer, "%s %s", command, filename) == 2) {
+                char command[1024], value[1024];
+                if (sscanf(buffer, "%s %s", command, value) == 2) {
                     mutexCout.lock();
                     cout << "Command: " << command << endl;
-                    cout << "Value: " << filename << endl;
+                    cout << "Value: " << value << endl;
                     mutexCout.unlock();
                     if (strcmp(command, "PUT") == 0) {
-                        saveFile(clientSocket, filename);
+                        saveFile(clientSocket, value);
                     } else if (strcmp(command, "GET") == 0) {
-                        sendFile(clientSocket, filename);
+                        sendFile(clientSocket, value);
                     } else if (strcmp(command, "CREATE_ROOM") == 0) {
-                        createRoom(clientSocket, filename);
+                        createRoom(clientSocket, value);
+                    } else if (strcmp(command, "JOIN_ROOM") == 0) {
+                        joinRoom(clientSocket, value);
                     } else {
                         send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
                     }
                 }
             }
+        }
+    }
+
+    void joinRoom(int clientSocket, const char* roomname) {
+        lock_guard<mutex> lock(clientDirectoriesMutex);
+        auto it = find(rooms.begin(), rooms.end(), roomname);
+        if (it != rooms.end()) {
+            send(clientSocket, "Joined room successfully", sizeof("Joined room successfully"), 0);
+        } else {
+            send(clientSocket, "Room does not exist", sizeof("Room does not exist"), 0);
         }
     }
 
