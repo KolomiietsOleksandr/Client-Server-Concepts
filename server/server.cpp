@@ -145,7 +145,9 @@ private:
                         createRoom(clientSocket, value);
                     } else if (strcmp(command, "JOIN_ROOM") == 0 && !clientRoomStatus[clientSocket]) {
                         joinRoom(clientSocket, value);
-                    } else {
+                    } else if (strcmp(command, "/m") == 0 && clientRoomStatus[clientSocket]) {
+                        sendMessageToRoom(clientSocket, value);
+                    }else {
                         send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
                     }
                 }
@@ -156,6 +158,22 @@ private:
                         listRooms(clientSocket);
                     }
                 }
+            }
+        }
+    }
+
+    void sendMessageToRoom(int senderSocket, const char* message) {
+        lock_guard<mutex> lock(clientDirectoriesMutex);
+        for (auto& room : rooms) {
+            auto& clients = room.second.clients;
+            auto it = find(clients.begin(), clients.end(), senderSocket);
+            if (it != clients.end()) {
+                for (int client : clients) {
+                    if (client != senderSocket) {
+                        send(client, message, strlen(message), 0);
+                    }
+                }
+                break;
             }
         }
     }

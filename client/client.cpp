@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <fstream>
 #include <sys/stat.h>
+#include <thread>
 
 using namespace std;
 
@@ -53,16 +54,22 @@ public:
                 else if (strcmp(command, "CREATE_ROOM") == 0 || strcmp(command, "JOIN_ROOM") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
+                else if (strcmp(command, "/m") == 0) { // Sending chat messages
+                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                }
                 else {
                     cout << "Invalid command" << endl;
                     sendData("Null");
                 }
-            }else if (strcmp(command, "LEAVE_ROOM") == 0) {
-            send(clientSocket, userInput.c_str(), userInput.size(), 0);
-            }else if (strcmp(command, "LIST_ROOMS") == 0) {
-            send(clientSocket, command, strlen(command), 0);
             }
-        } else {
+            else if (strcmp(command, "LEAVE_ROOM") == 0) {
+                send(clientSocket, userInput.c_str(), userInput.size(), 0);
+            }
+            else if (strcmp(command, "LIST_ROOMS") == 0) {
+                send(clientSocket, command, strlen(command), 0);
+            }
+        }
+        else {
             send(clientSocket, message, strlen(message), 0);
         }
 
@@ -96,7 +103,8 @@ public:
             if (bytesRead > 0) {
                 file.write(buffer, bytesRead);
                 fileSize -= bytesRead;
-            } else {
+            }
+            else {
                 perror("Error receiving file data");
                 break;
             }
@@ -144,6 +152,16 @@ public:
             }
         }
     }
+
+    void startReceivingMessages() {
+        thread receiveThread([this]() {
+            while (true) {
+                receiveData();
+            }
+        });
+        receiveThread.detach();
+    }
+
 private:
     int clientSocket;
     const char* serverIp;
@@ -165,8 +183,9 @@ int main() {
         client.nameClient = name.c_str();
         client.createClientDirectory("/Users/zakerden1234/Desktop/Client-Server-Concepts/client/cmake-build-debug/client-storage/" + name);
 
+        client.startReceivingMessages();
+
         while (true) {
-            client.receiveData();
             client.sendData("Null");
         }
     }
