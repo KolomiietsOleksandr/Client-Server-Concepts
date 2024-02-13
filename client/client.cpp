@@ -57,12 +57,10 @@ public:
                     cout << "Invalid command" << endl;
                     sendData("Null");
                 }
-            } else if (strcmp(command, "LIST") == 0) {
-                send(clientSocket, command, strlen(command), 0);
-            }
-            else {
-                cout << "Invalid command" << endl;
-                sendData("Null");
+            }else if (strcmp(command, "LEAVE_ROOM") == 0) {
+            send(clientSocket, userInput.c_str(), userInput.size(), 0);
+            }else if (strcmp(command, "LIST_ROOMS") == 0) {
+            send(clientSocket, command, strlen(command), 0);
             }
         } else {
             send(clientSocket, message, strlen(message), 0);

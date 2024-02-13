@@ -14,6 +14,10 @@
 
 using namespace std;
 
+struct Room {
+    vector<int> clients;
+};
+
 class Server {
 public:
     Server(int port) : port(port) {}
@@ -32,9 +36,11 @@ private:
     int port;
     string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
     unordered_map<int, string> clientDirectories;
+    unordered_map<int, bool> clientRoomStatus;
     mutex clientDirectoriesMutex;
     mutex mutexCout;
-    vector<string> rooms;
+    vector<string> roomsVector;
+    unordered_map<string, Room> rooms;
 
     bool setupServer() {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -106,10 +112,11 @@ private:
             }
 
             clientDirectories[clientSocket] = clientDirectory;
+            clientRoomStatus[clientSocket] = false;
 
             string welcomeMessage = "Hello, " + clientName + "!\n";
             welcomeMessage += "Available rooms:\n";
-            for (const string& room : rooms) {
+            for (const string& room : roomsVector) {
                 welcomeMessage += " - " + room + "\n";
             }
             welcomeMessage += "Type 'CREATE_ROOM <roomname>' to create a new room or 'JOIN_ROOM <roomname>' to join an existing room.";
@@ -134,12 +141,19 @@ private:
                         saveFile(clientSocket, value);
                     } else if (strcmp(command, "GET") == 0) {
                         sendFile(clientSocket, value);
-                    } else if (strcmp(command, "CREATE_ROOM") == 0) {
+                    } else if (strcmp(command, "CREATE_ROOM") == 0 && !clientRoomStatus[clientSocket]) {
                         createRoom(clientSocket, value);
-                    } else if (strcmp(command, "JOIN_ROOM") == 0) {
+                    } else if (strcmp(command, "JOIN_ROOM") == 0 && !clientRoomStatus[clientSocket]) {
                         joinRoom(clientSocket, value);
                     } else {
                         send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
+                    }
+                }
+                else{
+                    if (strcmp(buffer, "LEAVE_ROOM") == 0 && clientRoomStatus[clientSocket]) {
+                        leaveRoom(clientSocket);
+                    } else if (strcmp(buffer, "LIST_ROOMS") == 0 && !clientRoomStatus[clientSocket]) {
+                        listRooms(clientSocket);
                     }
                 }
             }
@@ -148,12 +162,36 @@ private:
 
     void joinRoom(int clientSocket, const char* roomname) {
         lock_guard<mutex> lock(clientDirectoriesMutex);
-        auto it = find(rooms.begin(), rooms.end(), roomname);
+        auto it = rooms.find(roomname);
         if (it != rooms.end()) {
+            it->second.clients.push_back(clientSocket);
+            clientRoomStatus[clientSocket] = true;
             send(clientSocket, "Joined room successfully", sizeof("Joined room successfully"), 0);
         } else {
             send(clientSocket, "Room does not exist", sizeof("Room does not exist"), 0);
         }
+    }
+
+    void leaveRoom(int clientSocket) {
+        lock_guard<mutex> lock(clientDirectoriesMutex);
+        for (auto& room : rooms) {
+            auto& clients = room.second.clients;
+            auto it = find(clients.begin(), clients.end(), clientSocket);
+            if (it != clients.end()) {
+                clients.erase(it);
+                clientRoomStatus[clientSocket] = false;
+                break;
+            }
+        }
+        send(clientSocket, "Left room successfully", sizeof("Left room successfully"), 0);
+    }
+
+    void listRooms(int clientSocket) {
+        string roomList = "Available rooms:\n";
+        for (const string& room : roomsVector) {
+            roomList += " - " + room + "\n";
+        }
+        send(clientSocket, roomList.c_str(), roomList.size(), 0);
     }
 
     bool createClientDirectory(const string& directory) {
@@ -230,7 +268,8 @@ private:
 
     void createRoom(int clientSocket, const char* roomname) {
         lock_guard<mutex> lock(clientDirectoriesMutex);
-        rooms.push_back(roomname);
+        roomsVector.push_back(roomname);
+        rooms[roomname];
         send(clientSocket, "Room created successfully", sizeof("Room created successfully"), 0);
     }
 };
