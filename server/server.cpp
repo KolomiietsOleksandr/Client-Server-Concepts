@@ -14,11 +14,11 @@
 #include <algorithm>
 #include <unistd.h>
 
-
 using namespace std;
 
 struct Room {
     vector<int> clients;
+    int fileProcessedCount = 0;
 };
 
 class Server {
@@ -140,8 +140,10 @@ private:
                     mutexCout.unlock();
                     if (cmd == "/y" && clientRoomStatus[clientSocket]) {
                         sendFileToClient(clientSocket, waitingFilename.c_str());
+                        markFileProcessed(clientSocket);
                     } else if (cmd == "/n" && clientRoomStatus[clientSocket]) {
-                        cout << "Client " << clientNames[clientSocket] << endl;
+                        cout << "Client " << clientNames[clientSocket] << " declined the file." << endl;
+                        markFileProcessed(clientSocket);
                     } else if (cmd == "CREATE_ROOM" && !clientRoomStatus[clientSocket]) {
                         createRoom(clientSocket, value.c_str());
                     } else if (cmd == "JOIN_ROOM" && !clientRoomStatus[clientSocket]) {
@@ -195,6 +197,20 @@ private:
                         string requestMessage = "Do you want to receive the file '" + filename + "' (" + to_string(fileSize) + " bytes) from " + clientNames[senderSocket] + "? ('/y' or '/no')";
                         send(client, requestMessage.c_str(), requestMessage.size(), 0);
                     }
+                }
+                break;
+            }
+        }
+    }
+
+    void markFileProcessed(int clientSocket) {
+        for (auto& room : rooms) {
+            auto& clients = room.second.clients;
+            auto it = find(clients.begin(), clients.end(), clientSocket);
+            if (it != clients.end()) {
+                room.second.fileProcessedCount++;
+                if (room.second.fileProcessedCount == clients.size() -1 ) {
+                    deleteFile(waitingFilename);
                 }
                 break;
             }
@@ -305,6 +321,15 @@ private:
         roomsVector.push_back(roomname);
         rooms[roomname];
         send(clientSocket, "Room created successfully", sizeof("Room created successfully"), 0);
+    }
+
+    void deleteFile(const std::string& filename) {
+        std::string fullFilePath = filepath + filename;
+        if (remove(fullFilePath.c_str()) != 0) {
+            perror("Error deleting file");
+        } else {
+            cout << "File deleted successfully: " << filename << endl;
+        }
     }
 };
 
