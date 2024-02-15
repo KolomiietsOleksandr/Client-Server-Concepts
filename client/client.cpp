@@ -1,4 +1,3 @@
-// Оновлений код клієнта
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -44,12 +43,8 @@ public:
 
             char command[1024], filename[1024];
             if (sscanf(userInput.c_str(), "%s %s", command, filename) == 2) {
-                if (strcmp(command, "PUT") == 0) {
+                if (strcmp(command, "/f") == 0) {
                     sendFile(command, filename);
-                }
-                else if (strcmp(command, "GET") == 0) {
-                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
-                    receiveFileFromServer(filename);
                 }
                 else if (strcmp(command, "CREATE_ROOM") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
@@ -62,7 +57,7 @@ public:
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
                 else {
-                    cout << "Invalid command" << endl;
+                    cout << "Invalid command client" << endl;
                     sendData("Null");
                 }
             }
@@ -74,11 +69,13 @@ public:
             else if (strcmp(userInput.c_str(), "LIST_ROOMS") == 0) {
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
+            else if (strcmp(userInput.c_str(), "/y") == 0) {
+                send(clientSocket, userInput.c_str(), userInput.size(), 0);
+            }
         }
         else {
             send(clientSocket, message, strlen(message), 0);
         }
-
     }
 
     void receiveData() {
@@ -87,38 +84,50 @@ public:
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            cout << buffer << endl;
+            if (strcmp(buffer, "file") == 0) {
+                receiveFileFromServer(clientSocket);
+            } else {
+                cout << buffer << endl;
+            }
         }
     }
 
-    void receiveFileFromServer(const string& filename) {
-        ofstream file(filepath + nameClient + "/" + filename, ios::binary);
+    void receiveFileFromServer(int clientSocket) {
+        const int bufferSize = 1024;
+        char buffer[bufferSize];
+        ssize_t bytesReceived = recv(clientSocket, buffer, bufferSize, 0);
+        if (bytesReceived <= 0) {
+            perror("Error receiving filename from server");
+            return;
+        }
+        buffer[bytesReceived] = '\0';
 
+        string receivedData(buffer);
+        string delimiter = "|";
+        string filename = receivedData.substr(0, receivedData.find(delimiter));
+
+        ofstream file(filepath + nameClient + "/" + filename, std::ios::binary);
         if (!file.is_open()) {
-            cout << "Error opening file for saving: " << filename << endl;
+            cerr << "Error opening file for saving: " << filename << std::endl;
             return;
         }
 
         streamsize fileSize;
         recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
 
-        const int bufferSize = 1024;
-        char buffer[bufferSize];
         while (fileSize > 0) {
             ssize_t bytesRead = recv(clientSocket, buffer, min(fileSize, static_cast<streamsize>(bufferSize)), 0);
             if (bytesRead > 0) {
                 file.write(buffer, bytesRead);
                 fileSize -= bytesRead;
-            }
-            else {
+            } else {
                 perror("Error receiving file data");
                 break;
             }
         }
-
         file.close();
 
-        cout << "File received successfully: " << filename << endl;
+        cout << "File received successfully: " << filename << std::endl;
     }
 
     void sendFile(const string& command, const string& filename) {
