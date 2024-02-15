@@ -1,3 +1,4 @@
+// Оновлений код клієнта
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -39,7 +40,6 @@ public:
     void sendData(const char* message) {
         if (strcmp(message, "Null") == 0) {
             string userInput;
-            cout << "Enter a command: ";
             getline(cin, userInput);
 
             char command[1024], filename[1024];
@@ -51,10 +51,14 @@ public:
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                     receiveFileFromServer(filename);
                 }
-                else if (strcmp(command, "CREATE_ROOM") == 0 || strcmp(command, "JOIN_ROOM") == 0) {
+                else if (strcmp(command, "CREATE_ROOM") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
-                else if (strcmp(command, "/m") == 0) { // Sending chat messages
+                else if (strcmp(command, "JOIN_ROOM") == 0) {
+                    clearConsole();
+                    send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                }
+                else if (strcmp(command, "/m") == 0) {
                     send(clientSocket, userInput.c_str(), userInput.size(), 0);
                 }
                 else {
@@ -62,11 +66,13 @@ public:
                     sendData("Null");
                 }
             }
-            else if (strcmp(command, "LEAVE_ROOM") == 0) {
+            else if (strcmp(userInput.c_str(), "LEAVE_ROOM") == 0) {
+                clearConsole();
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                send(clientSocket, "LIST_ROOMS", strlen("LIST_ROOMS"), 0);
             }
-            else if (strcmp(command, "LIST_ROOMS") == 0) {
-                send(clientSocket, command, strlen(command), 0);
+            else if (strcmp(userInput.c_str(), "LIST_ROOMS") == 0) {
+                send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
         }
         else {
@@ -81,7 +87,7 @@ public:
 
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            cout << "Received from server:\n" << buffer << endl;
+            cout << buffer << endl;
         }
     }
 
@@ -160,6 +166,10 @@ public:
             }
         });
         receiveThread.detach();
+    }
+
+    void clearConsole() {
+        system("clear");
     }
 
 private:

@@ -1,11 +1,11 @@
 #include <iostream>
+#include <sstream>
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <fstream>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sstream>
 #include <ctime>
 #include <thread>
 #include <unordered_map>
@@ -129,33 +129,35 @@ private:
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesReceived > 0) {
                 mutexCout.lock();
-                cout << "Received data: " << buffer << endl;
+                cout << "Received data from " << clientDirectories[clientSocket] << ": " << buffer << endl;
                 mutexCout.unlock();
-                char command[1024], value[1024];
-                if (sscanf(buffer, "%s %s", command, value) == 2) {
+
+                string command(buffer);
+                size_t pos = command.find(' ');
+                string cmd = command.substr(0, pos);
+
+                string value = (pos != string::npos) ? command.substr(pos + 1) : "";
+                if (!cmd.empty()) {
                     mutexCout.lock();
-                    cout << "Command: " << command << endl;
+                    cout << "Command: " << cmd << endl;
                     cout << "Value: " << value << endl;
                     mutexCout.unlock();
-                    if (strcmp(command, "PUT") == 0) {
-                        saveFile(clientSocket, value);
-                    } else if (strcmp(command, "GET") == 0) {
-                        sendFile(clientSocket, value);
-                    } else if (strcmp(command, "CREATE_ROOM") == 0 && !clientRoomStatus[clientSocket]) {
-                        createRoom(clientSocket, value);
-                    } else if (strcmp(command, "JOIN_ROOM") == 0 && !clientRoomStatus[clientSocket]) {
-                        joinRoom(clientSocket, value);
-                    } else if (strcmp(command, "/m") == 0 && clientRoomStatus[clientSocket]) {
-                        sendMessageToRoom(clientSocket, value);
-                    }else {
-                        send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
-                    }
-                }
-                else{
-                    if (strcmp(buffer, "LEAVE_ROOM") == 0 && clientRoomStatus[clientSocket]) {
+                    if (cmd == "PUT") {
+                        saveFile(clientSocket, value.c_str());
+                    } else if (cmd == "GET") {
+                        sendFile(clientSocket, value.c_str());
+                    } else if (cmd == "CREATE_ROOM" && !clientRoomStatus[clientSocket]) {
+                        createRoom(clientSocket, value.c_str());
+                    } else if (cmd == "JOIN_ROOM" && !clientRoomStatus[clientSocket]) {
+                        joinRoom(clientSocket, value.c_str());
+                    } else if (cmd == "/m" && clientRoomStatus[clientSocket]) {
+                        sendMessageToRoom(clientSocket, value.c_str());
+                    } else if (cmd == "LEAVE_ROOM" && clientRoomStatus[clientSocket]) {
                         leaveRoom(clientSocket);
                     } else if (strcmp(buffer, "LIST_ROOMS") == 0 && !clientRoomStatus[clientSocket]) {
                         listRooms(clientSocket);
+                    } else {
+                        send(clientSocket, "Invalid command", sizeof("Invalid command"), 0);
                     }
                 }
             }
@@ -170,7 +172,12 @@ private:
             if (it != clients.end()) {
                 for (int client : clients) {
                     if (client != senderSocket) {
-                        send(client, message, strlen(message), 0);
+                        string clientName = clientDirectories[senderSocket];
+                        size_t pos1 = clientName.find_last_of("/");
+                        size_t pos2 = clientName.find_last_of("/", pos1 - 1);
+                        string name = clientName.substr(pos2 + 1, pos1 - pos2 - 1);
+                        string formattedMessage = name + ": " + message;
+                        send(client, formattedMessage.c_str(), formattedMessage.size(), 0);
                     }
                 }
                 break;
@@ -178,13 +185,14 @@ private:
         }
     }
 
+
     void joinRoom(int clientSocket, const char* roomname) {
         lock_guard<mutex> lock(clientDirectoriesMutex);
         auto it = rooms.find(roomname);
         if (it != rooms.end()) {
             it->second.clients.push_back(clientSocket);
             clientRoomStatus[clientSocket] = true;
-            send(clientSocket, "Joined room successfully", sizeof("Joined room successfully"), 0);
+            send(clientSocket, "Joined room successfully.\nType '/m <massage>' to send text for user users.\nType 'LEAVE_ROOM' to exit.", sizeof("Joined room successfully.\nType '/m <massage>' to send text for user users.\nType 'LEAVE_ROOM' to exit."), 0);
         } else {
             send(clientSocket, "Room does not exist", sizeof("Room does not exist"), 0);
         }
@@ -209,6 +217,7 @@ private:
         for (const string& room : roomsVector) {
             roomList += " - " + room + "\n";
         }
+        roomList += "Type 'CREATE_ROOM <roomname>' to create a new room or 'JOIN_ROOM <roomname>' to join an existing room.";
         send(clientSocket, roomList.c_str(), roomList.size(), 0);
     }
 
