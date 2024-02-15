@@ -64,12 +64,17 @@ public:
             else if (strcmp(userInput.c_str(), "LEAVE_ROOM") == 0) {
                 clearConsole();
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
+                sleep(1);
                 send(clientSocket, "LIST_ROOMS", strlen("LIST_ROOMS"), 0);
             }
             else if (strcmp(userInput.c_str(), "LIST_ROOMS") == 0) {
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
             else if (strcmp(userInput.c_str(), "/y") == 0) {
+                send(clientSocket, userInput.c_str(), userInput.size(), 0);
+            }
+            else if (strcmp(userInput.c_str(), "/n") == 0) {
+                cout << "You reject file transfering";
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
         }

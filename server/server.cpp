@@ -138,8 +138,10 @@ private:
                     cout << "Command: " << cmd << endl;
                     cout << "Value: " << value << endl;
                     mutexCout.unlock();
-                    if (cmd == "/y") {
+                    if (cmd == "/y" && clientRoomStatus[clientSocket]) {
                         sendFileToClient(clientSocket, waitingFilename.c_str());
+                    } else if (cmd == "/n" && clientRoomStatus[clientSocket]) {
+                        cout << "Client " << clientNames[clientSocket] << endl;
                     } else if (cmd == "CREATE_ROOM" && !clientRoomStatus[clientSocket]) {
                         createRoom(clientSocket, value.c_str());
                     } else if (cmd == "JOIN_ROOM" && !clientRoomStatus[clientSocket]) {
