@@ -72,3 +72,8 @@ Mutexes prevent concurrent threads from accessing critical sections of code simu
 In multithreaded environments, mutexes are strategically placed to synchronize access to shared data structures and maintain data integrity.
 By using mutexes, the protocol guarantees that only one thread can modify shared resources at any given time, enhancing the stability and reliability of the system.
 
+## Diagrams
+<br>
+![image](https://cdn.discordapp.com/attachments/856234593153056781/1207974633412759572/Untitled-1.png?ex=65e1990b&is=65cf240b&hm=30981ca784a2388d0d67bee8e40fa33f3844c98f51bd111233e9a9c250e6ea16&")
+
+
