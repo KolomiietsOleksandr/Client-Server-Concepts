@@ -64,8 +64,6 @@ public:
             else if (strcmp(userInput.c_str(), "LEAVE_ROOM") == 0) {
                 clearConsole();
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
-                sleep(1);
-                send(clientSocket, "LIST_ROOMS", strlen("LIST_ROOMS"), 0);
             }
             else if (strcmp(userInput.c_str(), "LIST_ROOMS") == 0) {
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
@@ -74,7 +72,7 @@ public:
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
             else if (strcmp(userInput.c_str(), "/n") == 0) {
-                cout << "You reject file transfering";
+                cout << "You reject file transfering" << endl;
                 send(clientSocket, userInput.c_str(), userInput.size(), 0);
             }
         }
@@ -113,7 +111,7 @@ public:
 
         ofstream file(filepath + nameClient + "/" + filename, std::ios::binary);
         if (!file.is_open()) {
-            cerr << "Error opening file for saving: " << filename << std::endl;
+            cerr << "Error opening file for saving: " << filename << endl;
             return;
         }
 
@@ -132,7 +130,7 @@ public:
         }
         file.close();
 
-        cout << "File received successfully: " << filename << std::endl;
+        cout << "File received successfully: " << filename << endl;
     }
 
     void sendFile(const string& command, const string& filename) {

@@ -40,11 +40,10 @@ private:
     string filepath = "/Users/zakerden1234/Desktop/Client-Server-Concepts/server/cmake-build-debug/server-storage/";
     unordered_map<int, string> clientNames;
     unordered_map<int, bool> clientRoomStatus;
-    mutex clientDirectoriesMutex;
     mutex mutexCout;
+    mutex clientMutex;
     vector<string> roomsVector;
     unordered_map<string, Room> rooms;
-    bool waiting = false;
     string waitingFilename;
 
     bool setupServer() {
@@ -158,6 +157,7 @@ private:
                         sendMessageToRoom(clientSocket, msg.c_str());
                     } else if (cmd == "LEAVE_ROOM" && clientRoomStatus[clientSocket]) {
                         leaveRoom(clientSocket);
+                        listRooms(clientSocket);
                     } else if (strcmp(buffer, "LIST_ROOMS") == 0 && !clientRoomStatus[clientSocket]) {
                         listRooms(clientSocket);
                     } else {
@@ -169,7 +169,7 @@ private:
     }
 
     void sendMessageToRoom(int senderSocket, const char* message) {
-        lock_guard<mutex> lock(clientDirectoriesMutex);
+        lock_guard<mutex> lock(clientMutex);
         for (auto& room : rooms) {
             auto& clients = room.second.clients;
             auto it = find(clients.begin(), clients.end(), senderSocket);
@@ -194,7 +194,7 @@ private:
                         size_t fileSize = file.tellg();
                         file.close();
 
-                        string requestMessage = "Do you want to receive the file '" + filename + "' (" + to_string(fileSize) + " bytes) from " + clientNames[senderSocket] + "? ('/y' or '/no')";
+                        string requestMessage = "Do you want to receive the file '" + filename + "' (" + to_string(fileSize) + " bytes) from " + clientNames[senderSocket] + "? ('/y' or '/n')";
                         send(client, requestMessage.c_str(), requestMessage.size(), 0);
                     }
                 }
@@ -204,6 +204,7 @@ private:
     }
 
     void markFileProcessed(int clientSocket) {
+        lock_guard<mutex> lock(clientMutex);
         for (auto& room : rooms) {
             auto& clients = room.second.clients;
             auto it = find(clients.begin(), clients.end(), clientSocket);
@@ -211,6 +212,7 @@ private:
                 room.second.fileProcessedCount++;
                 if (room.second.fileProcessedCount == clients.size() -1 ) {
                     deleteFile(waitingFilename);
+                    room.second.fileProcessedCount = 0;
                 }
                 break;
             }
@@ -218,7 +220,7 @@ private:
     }
 
     void joinRoom(int clientSocket, const char* roomname) {
-        lock_guard<mutex> lock(clientDirectoriesMutex);
+        lock_guard<mutex> lock(clientMutex);
         auto it = rooms.find(roomname);
         if (it != rooms.end()) {
             it->second.clients.push_back(clientSocket);
@@ -230,7 +232,7 @@ private:
     }
 
     void leaveRoom(int clientSocket) {
-        lock_guard<mutex> lock(clientDirectoriesMutex);
+        lock_guard<mutex> lock(clientMutex);
         for (auto& room : rooms) {
             auto& clients = room.second.clients;
             auto it = find(clients.begin(), clients.end(), clientSocket);
@@ -244,6 +246,7 @@ private:
     }
 
     void listRooms(int clientSocket) {
+        lock_guard<mutex> lock(clientMutex);
         string roomList = "Available rooms:\n";
         for (const string& room : roomsVector) {
             roomList += " - " + room + "\n";
@@ -282,7 +285,7 @@ private:
         mutexCout.unlock();
     }
 
-    void sendFileToClient(int clientSocket, const std::string& filename) {
+    void sendFileToClient(int clientSocket, const string& filename) {
         string fileTypeIndicator = "file";
         send(clientSocket, fileTypeIndicator.c_str(), fileTypeIndicator.size(), 0);
 
@@ -292,7 +295,7 @@ private:
 
         ifstream file(filepath + filename, std::ios::binary);
         if (!file.is_open()) {
-            cerr << "Error opening file for sending: " << filename << std::endl;
+            cerr << "Error opening file for sending: " << filename << endl;
             return;
         }
         file.seekg(0, std::ios::end);
@@ -311,24 +314,26 @@ private:
             }
         }
         file.close();
-
-        cout << "File sent successfully: " << filename << std::endl;
+        mutexCout.lock();
+        cout << "File sent successfully: " << filename << endl;
+        mutexCout.unlock();
     }
 
-
     void createRoom(int clientSocket, const char* roomname) {
-        lock_guard<mutex> lock(clientDirectoriesMutex);
+        lock_guard<mutex> lock(clientMutex);
         roomsVector.push_back(roomname);
         rooms[roomname];
         send(clientSocket, "Room created successfully", sizeof("Room created successfully"), 0);
     }
 
-    void deleteFile(const std::string& filename) {
-        std::string fullFilePath = filepath + filename;
+    void deleteFile(const string& filename) {
+        string fullFilePath = filepath + filename;
         if (remove(fullFilePath.c_str()) != 0) {
             perror("Error deleting file");
         } else {
+            mutexCout.lock();
             cout << "File deleted successfully: " << filename << endl;
+            mutexCout.unlock();
         }
     }
 };
